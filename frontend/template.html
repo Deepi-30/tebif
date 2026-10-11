@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TEBIF Scam Detection Demo</title>
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --ink:#1b1f24; --muted:#5b6672; --line:#d9dee4;
+  --accent:#2a6fdb; --p:#2a6fdb; --r:#d97706; --thr:#c62828; --fraud:#b3198a;
+  --green:#1b8a4b; --amber:#c27a00; --red:#c62828; --grid:#e6e9ee; --att:42,111,219;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1317; --panel:#181d23; --ink:#e8ecf0; --muted:#9aa6b2; --line:#2b333c;
+    --accent:#6ea8ff; --p:#6ea8ff; --r:#f5a524; --thr:#ff6b6b; --fraud:#f06ac8;
+    --green:#4cd08a; --amber:#f5b94a; --red:#ff6b6b; --grid:#252c34; --att:110,168,255;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1317; --panel:#181d23; --ink:#e8ecf0; --muted:#9aa6b2; --line:#2b333c;
+  --accent:#6ea8ff; --p:#6ea8ff; --r:#f5a524; --thr:#ff6b6b; --fraud:#f06ac8;
+  --green:#4cd08a; --amber:#f5b94a; --red:#ff6b6b; --grid:#252c34; --att:110,168,255;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:16px 20px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between}
+header h1{font-size:1.25rem;margin:0}
+header .sub{color:var(--muted);font-size:.9rem}
+.pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.8rem;font-weight:600;border:1px solid var(--line)}
+.pill.syn{background:rgba(217,119,6,.12);color:var(--r);border-color:var(--r)}
+button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 14px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.layout{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px 20px;max-width:1500px;margin:0 auto}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr);padding:16px}}
+.grid2>*{min-width:0}
+section.card{overflow-x:auto}
+aside{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;max-height:calc(100vh - 100px);overflow:auto;position:sticky;top:10px;align-self:start}
+@media (max-width:900px){aside{position:static;max-height:300px}}
+aside h2{font-size:.95rem;margin:6px 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.acc{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.acc:hover{background:var(--bg)} .acc.sel{border-color:var(--accent);background:var(--bg)}
+.acc .id{font-family:ui-monospace,Consolas,monospace;font-size:.85rem}
+.acc .cat{font-size:.75rem;color:var(--muted)}
+.acc .grow{flex:1;min-width:0}
+.badge{min-width:50px;text-align:center;border-radius:6px;padding:2px 6px;font-weight:700;font-size:.8rem;color:#fff}
+.badge.g{background:var(--green)} .badge.a{background:var(--amber)} .badge.r{background:var(--red)}
+.tag{font-size:.7rem;font-weight:700;padding:1px 7px;border-radius:5px;border:1px solid}
+.tag.fraud{color:var(--fraud);border-color:var(--fraud)} .tag.normal{color:var(--muted);border-color:var(--line)}
+main{display:flex;flex-direction:column;gap:16px;min-width:0}
+section.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+section.card h2{margin:0 0 4px;font-size:1.1rem}
+.muted{color:var(--muted)} .small{font-size:.85rem}
+.row{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center}
+.ctl{display:flex;align-items:center;gap:8px}
+.ctl input[type=range]{width:180px}
+.timeline{display:flex;gap:8px;overflow-x:auto;padding:6px 2px 10px}
+.ev{flex:0 0 120px;border:1px solid var(--line);border-radius:10px;padding:8px;position:relative;background:rgba(var(--att),var(--a,0));transition:background .25s}
+.ev.future{opacity:.28} .ev.cur{outline:2px solid var(--accent)}
+.ev.fraud{border:2px solid var(--fraud)}
+.ev .n{font-size:.75rem;color:var(--muted)} .ev .t{font-weight:700;font-size:.9rem}
+.ev .amt{font-family:ui-monospace,Consolas,monospace;font-size:.9rem}
+.ev .gap{font-size:.78rem} .ev .fl{position:absolute;top:4px;right:6px;font-size:.65rem;font-weight:700;color:var(--fraud)}
+.legend{display:flex;gap:14px;align-items:center;font-size:.8rem;color:var(--muted);flex-wrap:wrap}
+.grad{width:110px;height:10px;border-radius:5px;background:linear-gradient(90deg,rgba(var(--att),0),rgba(var(--att),1));border:1px solid var(--line)}
+svg text{fill:var(--muted);font-size:12px}
+svg .ax{stroke:var(--line)} svg .gr{stroke:var(--grid)}
+#alertbox{padding:10px 14px;border-radius:10px;font-weight:600;border:1px solid var(--line)}
+#alertbox.on{background:rgba(198,40,40,.12);color:var(--thr);border-color:var(--thr)}
+#alertbox.off{background:rgba(27,138,75,.1);color:var(--green);border-color:var(--green)}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--line)} th:first-child,td:first-child{text-align:left}
+td.best{font-weight:700;color:var(--accent)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}
+.note{border-left:4px solid var(--r);padding:8px 12px;background:rgba(217,119,6,.08);border-radius:0 8px 8px 0}
+.arch{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
+.arch .b{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.85rem;background:var(--bg);flex:1 1 130px;min-width:130px}
+.arch .b b{display:block;color:var(--accent)} .arch .ar{align-self:center;color:var(--muted);font-size:1.3rem}
+.arch .stack{display:flex;flex-direction:column;gap:6px;flex:1 1 150px}
+.summary{font-size:1.05rem;padding:10px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--line)}
+@media (min-width:1500px){body{font-size:17px}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>TEBIF – Transformer-Based Explainable Behavioural Intelligence Framework</h1>
+    <div class="sub">Financial scam detection · simplified, reproducible version</div>
+  </div>
+  <div class="row">
+    <span class="pill syn">Synthetic PaySim data · no real customers</span>
+    <button id="theme" title="Toggle light/dark">◐ Theme</button>
+  </div>
+</header>
+
+<div class="layout">
+<aside>
+  <h2>Demo accounts (test period)</h2>
+  <div id="list"></div>
+  <div class="small muted" style="margin:8px">Badge = highest risk score R<sub>t</sub> reached (green below 60% of threshold, amber near, red = alert). Tag = ground truth.</div>
+</aside>
+
+<main>
+  <section class="card" id="head">
+    <div class="row" style="justify-content:space-between">
+      <div><h2 id="accTitle"></h2><div class="muted small" id="accSub"></div></div>
+      <div id="alertbox" class="off"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Risk over time</h2>
+    <div class="muted small">p<sub>t</sub> = model probability that this account will commit fraud in the next 24 simulated hours. R<sub>t</sub> = α·p<sub>t</sub> + (1−α)·R<sub>t−1</sub>. An alert fires when R<sub>t</sub> crosses the threshold.</div>
+    <div class="row" style="margin:10px 0">
+      <button class="primary" id="play">▶ Play</button>
+      <button id="reset">⏮ Reset</button>
+      <div class="ctl">Event <input type="range" id="tslider" min="0" max="0" value="0"> <b id="tlabel"></b></div>
+      <div class="ctl">α <input type="range" id="alpha" min="0.05" max="1" step="0.05"> <b id="alabel"></b></div>
+      <div class="ctl">Threshold <input type="range" id="thr" min="0" max="1" step="0.005"> <b id="thlabel"></b></div>
+      <button id="resetThr" class="small">Use validation-chosen values</button>
+    </div>
+    <div id="riskchart"></div>
+  </section>
+
+  <section class="card">
+    <h2>Event timeline</h2>
+    <div class="legend">Shading = attention of the model at the selected event (what it <i>attended to</i>, not proof of cause):
+      <span>low</span><span class="grad"></span><span>high</span> · <span style="color:var(--fraud)">■ magenta border = confirmed fraudulent transaction</span> · faded = not yet happened</div>
+    <div class="timeline" id="timeline"></div>
+  </section>
+
+  <section class="card">
+    <h2>Why was this account flagged?</h2>
+    <div class="muted small" id="exSub"></div>
+    <div class="summary" id="summary" style="margin:8px 0"></div>
+    <div class="grid2">
+      <div><b>Top attributed features</b> <span class="muted small">(occlusion: drop in p when blanked)</span><div id="featchart"></div></div>
+      <div><b>Feature types (blanked in every event)</b><div id="groupchart"></div></div>
+    </div>
+    <div style="margin-top:8px"><b>Deletion test for this account</b> <span class="muted small">(drop in p after deleting the k most-attributed past events vs. k random ones)</span>
+      <div id="faithAcc"></div></div>
+  </section>
+
+  <section class="card">
+    <h2>Model comparison <span class="muted small">(test period · 1 seed per model, so no ± – short-budget demo)</span></h2>
+    <div class="note small" id="honest" style="margin:8px 0"></div>
+    <div style="overflow-x:auto"><table id="mtable"></table></div>
+    <div class="grid2" style="margin-top:14px">
+      <div><b>Ablation</b> <span class="muted small">(removing time encodings from TEBIF)</span><div style="overflow-x:auto"><table id="abl"></table></div></div>
+      <div><b>Leakage / feature-set check (not run)</b> <span class="muted small">(seed 0 only)</span><div style="overflow-x:auto"><table id="leak"></table></div></div>
+    </div>
+    <div class="grid2" style="margin-top:14px">
+      <div><b>Average risk score: fraud vs. normal accounts</b><div class="muted small">Aligned to the event just before the fraud (0). Normal accounts: one random anchor event each.</div><div id="avgcurve"></div><div class="small muted" id="alertstats"></div></div>
+      <div><b>Deletion test (faithfulness)</b><div class="muted small">Mean drop in p after deleting top-k past events, ranked by occlusion / attention / random.</div><div id="delbars"></div><div id="delcurve"></div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Architecture</h2>
+    <div class="arch">
+      <div class="b"><b>1 · Event stream</b>type, amount, balance ratios, Δt — last 30 events per account</div><div class="ar">→</div>
+      <div class="b"><b>2 · Time-aware embedding</b>type + features + position + sinusoidal Δt &amp; cumulative-time encoding</div><div class="ar">→</div>
+      <div class="b"><b>3 · Transformer</b>2 layers · 4 heads · d=64</div><div class="ar">→</div>
+      <div class="stack"><div class="b"><b>4a · Detection head</b>p<sub>t</sub> = P(fraud in next 24 h)</div><div class="b"><b>4b · Explainability</b>attention · occlusion · deletion test</div></div><div class="ar">→</div>
+      <div class="b"><b>5 · Risk score</b>R<sub>t</sub> = α·p<sub>t</sub> + (1−α)·R<sub>t−1</sub></div><div class="ar">→</div>
+      <div class="b"><b>6 · Alert</b>when R<sub>t</sub> ≥ analyst threshold</div>
+    </div>
+  </section>
+  <div class="small muted" style="padding:0 4px 20px" id="foot"></div>
+</main>
+</div>
+
+<script id="data" type="application/json">__RESULTS_JSON__</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById('data').textContent);
+const $ = id => document.getElementById(id);
+const CAT = {fraud_caught:'Fraud · caught early', fraud_missed:'Fraud · missed', normal:'Normal', false_alarm:'Normal · false alarm'};
+const state = {i:0, t:0, alpha:D.risk.alpha, thr:D.risk.threshold, timer:null};
+const fmtN = x => x.toLocaleString(undefined,{maximumFractionDigits:0});
+const pm = (a,d=3) => a.mean.toFixed(d)+(a.std==null?'':' ± '+a.std.toFixed(d));
+
+/* ---------- risk score (recomputed live from p_t) ---------- */
+function riskSeries(a, alpha){
+  const R=[]; a.events.forEach((e,k)=>R.push(k===0?e.p:alpha*e.p+(1-alpha)*R[k-1])); return R;
+}
+const firstAlert = (R,thr,upto) => { for(let k=0;k<=upto;k++) if(R[k]>=thr) return k; return -1; };
+
+/* ---------- tiny SVG chart helpers ---------- */
+function svgEl(w,h,inner){return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:${w}px;display:block">${inner}</svg>`;}
+function lineChart({W=720,H=300,xs,series,ymax,hlines=[],vlines=[],marks=[],xlabel='',ylabel='',xtick=null}){
+  const m={l:48,r:14,t:12,b:40}, iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const n=xs.length, X=i=>m.l+(n<2?iw/2:i*iw/(n-1)), Y=v=>m.t+ih-(v/ymax)*ih;
+  let s='';
+  for(let g=0;g<=4;g++){const v=ymax*g/4; s+=`<line class="gr" x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${m.l-6}" y="${Y(v)+4}" text-anchor="end">${v.toFixed(2)}</text>`;}
+  const step=Math.max(1,Math.ceil(n/12));
+  xs.forEach((x,i)=>{ if(i%step===0||i===n-1) s+=`<text x="${X(i)}" y="${H-m.b+16}" text-anchor="middle">${xtick?xtick(x):x}</text>`;});
+  s+=`<line class="ax" x1="${m.l}" x2="${W-m.r}" y1="${m.t+ih}" y2="${m.t+ih}"/><line class="ax" x1="${m.l}" x2="${m.l}" y1="${m.t}" y2="${m.t+ih}"/>`;
+  s+=`<text x="${m.l+iw/2}" y="${H-6}" text-anchor="middle">${xlabel}</text><text transform="translate(12 ${m.t+ih/2}) rotate(-90)" text-anchor="middle">${ylabel}</text>`;
+  hlines.forEach(h=>{s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(h.v)}" y2="${Y(h.v)}" style="stroke:${h.c};stroke-width:2" stroke-dasharray="6 4"/><text x="${W-m.r-4}" y="${Y(h.v)-5}" text-anchor="end" style="fill:${h.c};font-weight:700">${h.label}</text>`;});
+  vlines.forEach(v=>{s+=`<line x1="${X(v.i)}" x2="${X(v.i)}" y1="${m.t}" y2="${m.t+ih}" style="stroke:${v.c};stroke-width:2" stroke-dasharray="3 3"/><text x="${X(v.i)+4}" y="${m.t+12}" style="fill:${v.c};font-weight:700">${v.label}</text>`;});
+  series.forEach(se=>{
+    const pts=se.y.map((v,i)=>v==null?null:[X(i),Y(Math.min(v,ymax))]).filter(Boolean);
+    s+=`<polyline fill="none" style="stroke:${se.c};stroke-width:2.5" ${se.dash?'stroke-dasharray="'+se.dash+'"':''} points="${pts.map(p=>p.join(',')).join(' ')}"/>`;
+    if(se.dots) pts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="3.5" style="fill:${se.c}"/>`);
+  });
+  marks.forEach(k=>{s+=`<circle cx="${X(k.i)}" cy="${Y(Math.min(k.v,ymax))}" r="${k.r||6}" style="fill:${k.fill||'none'};stroke:${k.c};stroke-width:2.5"/>`;});
+  // legend
+  let lx=m.l+8; series.forEach(se=>{ if(!se.name) return; s+=`<rect x="${lx}" y="${m.t+2}" width="16" height="4" style="fill:${se.c}"/><text x="${lx+22}" y="${m.t+9}">${se.name}</text>`; lx+=30+se.name.length*7;});
+  return svgEl(W,H,s);
+}
+function hbars(items,{W=460,rowH=26,fmt=v=>v.toFixed(3)}={}){
+  if(!items.length) return '<div class="muted small">no data</div>';
+  const mx=Math.max(1e-6,...items.map(i=>Math.abs(i.v))), lw=170, bw=W-lw-60, mid=lw+bw/2, H=items.length*rowH+8;
+  let s=`<line class="ax" x1="${mid}" x2="${mid}" y1="0" y2="${H}"/>`;
+  items.forEach((it,k)=>{const y=k*rowH+4, w=Math.abs(it.v)/mx*(bw/2);
+    s+=`<text x="${lw-6}" y="${y+16}" text-anchor="end">${it.label}</text><rect x="${it.v>=0?mid:mid-w}" y="${y+3}" width="${w}" height="${rowH-8}" rx="3" style="fill:${it.v>=0?'var(--thr)':'var(--p)'}"/><text x="${it.v>=0?mid+w+4:mid-w-4}" y="${y+16}" text-anchor="${it.v>=0?'start':'end'}">${fmt(it.v)}</text>`;});
+  return svgEl(W,H,s);
+}
+
+/* ---------- sidebar ---------- */
+function badgeClass(R){const mx=Math.max(...R); return mx>=state.thr?'r':(mx>=0.6*state.thr?'a':'g');}
+function renderList(){
+  $('list').innerHTML=D.accounts.map((a,i)=>{
+    const R=riskSeries(a,state.alpha), mx=Math.max(...R);
+    return `<div class="acc ${i===state.i?'sel':''}" data-i="${i}"><span class="badge ${badgeClass(R)}">${mx.toFixed(2)}</span>
+      <div class="grow"><div class="id">${a.id}</div><div class="cat">${CAT[a.category]} · ${a.events.length} events</div></div>
+      <span class="tag ${a.true_label}">${a.true_label.toUpperCase()}</span></div>`;}).join('');
+  document.querySelectorAll('.acc').forEach(el=>el.onclick=()=>select(+el.dataset.i));
+}
+
+/* ---------- main account view ---------- */
+function select(i){ stop(); state.i=i; const a=D.accounts[i]; state.t=0;
+  $('tslider').max=a.events.length-1; $('tslider').value=0;
+  renderList(); renderExplain(); renderAll(); }
+function renderAll(){
+  const a=D.accounts[state.i], R=riskSeries(a,state.alpha), t=state.t;
+  $('tlabel').textContent=`${t+1} / ${a.events.length}`; $('alabel').textContent=state.alpha.toFixed(2); $('thlabel').textContent=state.thr.toFixed(3);
+  $('accTitle').innerHTML=`Account ${a.id} <span class="tag ${a.true_label}">${a.true_label.toUpperCase()}</span>`;
+  $('accSub').textContent=`${CAT[a.category]} · ${a.events.length} events · steps ${a.events[0].step}–${a.events[a.events.length-1].step}`;
+  const fa=firstAlert(R,state.thr,t), box=$('alertbox');
+  if(fa>=0){ const fe=a.fraud_event; box.className='on';
+    box.textContent=`🚨 ALERT fired at event ${fa+1}`+(fe!=null?(fa<fe?` — ${fe-fa} event(s) before the fraud`:' — not before the fraud'):' — (account is actually normal: false alarm)'); }
+  else { box.className='off'; box.textContent=`No alert yet · R${'t'} = ${R[t].toFixed(3)} (threshold ${state.thr.toFixed(3)})`; }
+  // chart: draw p and R up to the current event
+  const n=a.events.length, xs=a.events.map((_,k)=>k+1);
+  const cut=arr=>arr.map((v,k)=>k<=t?v:null);
+  const ymax=Math.max(0.1,state.thr*1.3,...a.events.map(e=>e.p),...R)*1.08;
+  $('riskchart').innerHTML=lineChart({xs,ymax,xlabel:'event number (time order)',ylabel:'probability / risk',
+    series:[{name:'p_t (model)',y:cut(a.events.map(e=>e.p)),c:'var(--p)',dots:true},{name:'R_t (risk score)',y:cut(R),c:'var(--r)',dots:true}],
+    hlines:[{v:state.thr,c:'var(--thr)',label:'alert threshold'}],
+    vlines:a.fraud_event!=null?[{i:a.fraud_event,c:'var(--fraud)',label:'fraud'}]:[],
+    marks:fa>=0?[{i:fa,v:R[fa],c:'var(--thr)',fill:'var(--thr)',r:7}]:[]});
+  // timeline
+  const row=a.attention_by_time[t], mxA=Math.max(...row.slice(0,t+1),1e-9);
+  $('timeline').innerHTML=a.events.map((e,k)=>{
+    const al=k<=t?(row[k]/mxA):0;
+    return `<div class="ev ${k>t?'future':''} ${k===t?'cur':''} ${e.is_fraud?'fraud':''}" style="--a:${(al*0.75).toFixed(3)}" data-k="${k}">
+      ${e.is_fraud?'<span class="fl">FRAUD</span>':''}<div class="n">#${k+1} · step ${e.step}</div><div class="t">${e.type.replace('_',' ')}</div>
+      <div class="amt">${fmtN(e.amount)}</div><div class="gap">${k===0?'first event':(e.dt===0?'same hour':'+'+e.dt+' h')} · ${e.role}</div>
+      <div class="small">attn ${k<=t?(row[k]*100).toFixed(0)+'%':'–'}</div></div>`;}).join('');
+  document.querySelectorAll('.ev').forEach(el=>el.onclick=()=>{state.t=+el.dataset.k;$('tslider').value=state.t;renderAll();});
+  const cur=document.querySelector('.ev.cur'); if(cur) cur.scrollIntoView({block:'nearest',inline:'center'});
+  renderList();
+}
+function renderExplain(){
+  const a=D.accounts[state.i], f=a.focus_event;
+  $('exSub').textContent=`Explanation computed for event ${f+1} (${a.category==='fraud_missed'?'the event just before the fraud':a.category==='normal'?'the highest-risk moment':'the first alert'}). Attention = what the model looked at; occlusion = what changes the prediction when removed. Neither proves causation.`;
+  $('summary').textContent=a.summary;
+  const evLabel=e=>e==null?'?':'e'+(e+1);
+  $('featchart').innerHTML=hbars(a.top_features.map(x=>({label:`${evLabel(x.event)} ${x.feature}`,v:x.drop})));
+  $('groupchart').innerHTML=hbars(Object.entries(a.feature_groups).sort((x,y)=>Math.abs(y[1])-Math.abs(x[1])).map(([k,v])=>({label:k,v})));
+  if(!a.faithfulness){$('faithAcc').innerHTML='<div class="muted small">Too few past events.</div>';return;}
+  let h='<table><tr><th>k deleted</th><th>Occlusion order</th><th>Attention order</th><th>Random order (avg of 20)</th></tr>';
+  for(const k of ['1','3','5']){const r=a.faithfulness[k]; h+=`<tr><td>${k}</td><td>${r.occlusion.toFixed(3)}</td><td>${r.attention.toFixed(3)}</td><td>${r.random.toFixed(3)}</td></tr>`;}
+  $('faithAcc').innerHTML=h+'</table>';
+}
+
+/* ---------- play / controls ---------- */
+function stop(){ if(state.timer){clearInterval(state.timer);state.timer=null;} $('play').textContent='▶ Play'; }
+function play(){
+  const a=D.accounts[state.i];
+  if(state.t>=a.events.length-1) state.t=0;
+  $('play').textContent='⏸ Pause';
+  state.timer=setInterval(()=>{ if(state.t>=a.events.length-1){stop();return;} state.t++; $('tslider').value=state.t; renderAll(); },1000);
+}
+$('play').onclick=()=>state.timer?stop():play();
+$('reset').onclick=()=>{stop();state.t=0;$('tslider').value=0;renderAll();};
+$('tslider').oninput=e=>{state.t=+e.target.value;renderAll();};
+$('alpha').oninput=e=>{state.alpha=+e.target.value;renderAll();};
+$('thr').oninput=e=>{state.thr=+e.target.value;renderAll();};
+$('resetThr').onclick=()=>{state.alpha=D.risk.alpha;state.thr=D.risk.threshold;$('alpha').value=state.alpha;$('thr').value=state.thr;renderAll();};
+$('theme').onclick=()=>{const r=document.documentElement,cur=r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.setAttribute('data-theme',cur==='dark'?'light':'dark');renderAll();};
+
+/* ---------- comparison section ---------- */
+function renderCompare(){
+  const M=D.metrics, names=Object.keys(M), cols=[['auc','AUC-ROC'],['prauc','PR-AUC'],['f1','F1 (val-tuned thr.)'],['recall_at_85p','Recall @ 85% precision'],['recall_at_1pct','Recall @ top-1% alerts']];
+  const main=['LSTM','Vanilla Transformer','TEBIF (Transformer + Δt + time)'].filter(n=>M[n]);
+  const best={}; cols.forEach(([k])=>best[k]=Math.max(...main.map(n=>M[n][k].mean)));
+  let h='<tr><th>Model</th>'+cols.map(c=>`<th>${c[1]}</th>`).join('')+'<th>ms / event</th><th>params</th></tr>';
+  main.forEach(n=>{h+=`<tr><td>${n}</td>`+cols.map(([k])=>`<td>${pm(M[n][k])}</td>`).join('')+`<td>${M[n].latency_ms.toFixed(2)}</td><td>${fmtN(M[n].params)}</td></tr>`;});
+  const t=D.meta.test; h+=`<tr><td class="muted">Random scorer (reference)</td><td class="muted">0.500</td><td class="muted">${t.prevalence.toFixed(4)}</td><td colspan="5" class="muted" style="text-align:left">test: ${t.test_positives} positives among ${fmtN(t.test_points)} labelled events</td></tr>`;
+  $('mtable').innerHTML=h;
+  // honest statement computed from the numbers
+  const T=M['TEBIF (Transformer + Δt + time)'], L=M['LSTM'], V=M['Vanilla Transformer'];
+  const diffs=[['LSTM',L],['Vanilla Transformer',V]].filter(x=>x[1]).map(([n,o])=>{const d=T.prauc.mean-o.prauc.mean; return {n,d,within:true};});
+  $('honest').innerHTML='<b>Honest reading:</b> '+diffs.map(x=>`TEBIF PR-AUC is ${x.d>=0?'higher':'lower'} than ${x.n} by ${Math.abs(x.d).toFixed(4)} (${x.within?'not interpretable as a win (single seed, near-chance scores)':'single seed'})`).join('; ')+
+    `. PaySim is synthetic with artificial time gaps and very few positives (${t.test_positives} in test), so these numbers are weak evidence either way. A random scorer would get PR-AUC ≈ ${t.prevalence.toFixed(4)}.`;
+  let a='<tr><th>Variant</th><th>AUC-ROC</th><th>PR-AUC</th></tr>';
+  D.ablation.forEach(r=>a+=`<tr><td>${r.name}</td><td>${pm(r.auc)}</td><td>${pm(r.prauc,4)}</td></tr>`);
+  $('abl').innerHTML=a;
+  let l='<tr><th>Run</th><th>AUC-ROC</th><th>PR-AUC</th></tr>';
+  Object.entries(D.feature_checks).forEach(([k,v])=>l+=`<tr><td>${k.replace('_s0','').replace('_',' / ')}</td><td>${v.auc.toFixed(3)}</td><td>${v.prauc.toFixed(4)}</td></tr>`);
+  $('leak').innerHTML=Object.keys(D.feature_checks).length?l:'<tr><td class="muted" style="text-align:left">Not run in this short-budget version. Only the safe feature set was trained; no AUC above 0.99 occurred (max test AUC &lt; 0.6).</td></tr>';
+  // average risk curve
+  const c=D.risk.curves, offs=c.fraud.offsets;
+  const ymax=Math.max(D.risk.threshold*1.2,...c.fraud.R,...c.normal.R)*1.1; // offsets with n=0 are drawn as gaps
+  $('avgcurve').innerHTML=lineChart({xs:offs,ymax,xlabel:'events relative to the event just before fraud (0)',ylabel:'mean R_t',
+    series:[{name:`fraud (n=${c.fraud.n[c.fraud.n.length-1]})`,y:c.fraud.R.map((v,i)=>c.fraud.n[i]?v:null),c:'var(--fraud)',dots:true},{name:`normal (n=${c.normal.n[c.normal.n.length-1]})`,y:c.normal.R.map((v,i)=>c.normal.n[i]?v:null),c:'var(--green)',dots:true}],
+    hlines:[{v:D.risk.threshold,c:'var(--thr)',label:'threshold'}],H:280});
+  const tr=D.risk.test_report;
+  $('alertstats').textContent=`Test streams at the validation-chosen threshold: ${tr.caught_early}/${tr.fraud_streams} fraud accounts alerted before the fraud (recall ${(tr.recall*100).toFixed(1)}%), ${tr.false_alarms}/${tr.normal_streams} normal accounts alerted (${(tr.false_alarm_rate*100).toFixed(1)}%), precision ${(tr.precision*100).toFixed(1)}%. Median lead time: ${tr.lead_events_median!=null?tr.lead_events_median+' event(s) / '+tr.lead_hours_median+' h':'n/a'}.`;
+  // deletion test
+  const F=D.faithfulness; const ks=['1','3','5'], names3=[['occlusion','Occlusion','var(--thr)'],['attention','Attention','var(--p)'],['random','Random','var(--muted)']];
+  const W=460,H=280,m={l:52,r:10,t:14,b:60}, iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const hi=Math.max(1e-4,...ks.flatMap(k=>names3.map(([n])=>F.comp[k][n].mean+F.comp[k][n].sem)))*1.15;
+  const lo=Math.min(0,...ks.flatMap(k=>names3.map(([n])=>F.comp[k][n].mean-F.comp[k][n].sem)))*1.15;
+  const Y=v=>m.t+ih-(v-lo)/(hi-lo)*ih;
+  let s=''; for(let g=0;g<=4;g++){const v=lo+(hi-lo)*g/4; s+=`<line class="gr" x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${m.l-6}" y="${Y(v)+4}" text-anchor="end">${v.toFixed(2)}</text>`;}
+  s+=`<line class="ax" x1="${m.l}" x2="${W-m.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  ks.forEach((k,gi)=>{const gw=iw/3; names3.forEach(([n,lab,col],bi)=>{const r=F.comp[k][n], bw=gw/4.2, x=m.l+gi*gw+bi*bw+gw*0.1;
+    s+=`<rect x="${x}" y="${Math.min(Y(0),Y(r.mean))}" width="${bw*0.9}" height="${Math.abs(Y(r.mean)-Y(0))}" rx="2" style="fill:${col}"/><line x1="${x+bw*0.45}" x2="${x+bw*0.45}" y1="${Y(r.mean+r.sem)}" y2="${Y(r.mean-r.sem)}" style="stroke:var(--ink)"/>`;});
+    s+=`<text x="${m.l+gi*gw+gw/2}" y="${H-m.b+34}" text-anchor="middle">k = ${k}</text>`;});
+  let lx=m.l; names3.forEach(([n,lab,col])=>{s+=`<rect x="${lx}" y="${H-14}" width="12" height="10" style="fill:${col}"/><text x="${lx+16}" y="${H-5}">${lab}</text>`;lx+=100;});
+  $('delbars').innerHTML=svgEl(W,H,s)+`<div class="small muted">${F.n_windows} windows (${F.pool}); error bars = s.e.m. Higher drop for occlusion than random would mean a faithful ranking; a NEGATIVE drop means p went UP after deleting events (shorter windows score higher), which confounds the test for k≥3.</div>`;
+  $('delcurve').innerHTML=lineChart({xs:F.grid,ymax:Math.max(...F.del_curve.random,...F.ins_curve.occlusion,...F.del_curve.occlusion,0.01)*1.1,H:230,xlabel:'fraction of past events deleted (solid) / inserted (dashed)',ylabel:'mean p',xtick:x=>x.toFixed(1),
+    series:[{name:'delete: occlusion',y:F.del_curve.occlusion,c:'var(--thr)'},{name:'delete: random',y:F.del_curve.random,c:'var(--muted)'},{name:'insert: occlusion',y:F.ins_curve.occlusion,c:'var(--p)',dash:'5 4'},{name:'insert: random',y:F.ins_curve.random,c:'var(--green)',dash:'5 4'}]});
+  $('foot').textContent=`${D.meta.note} Windows of ${D.meta.window} events; label = confirmed fraud involving the account within the next ${D.meta.horizon_steps} simulated hours. Demo accounts are sampled from the test period only.`;
+}
+
+/* ---------- init ---------- */
+$('alpha').value=state.alpha; $('thr').value=state.thr;
+renderCompare(); select(Math.max(0,D.accounts.findIndex(a=>a.category==='fraud_caught')));
+</script>
+</body>
+</html>
